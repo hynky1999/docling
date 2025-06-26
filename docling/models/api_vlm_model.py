@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from docling.datamodel.base_models import Page, VlmPrediction
 from docling.datamodel.document import ConversionResult
-from docling.datamodel.pipeline_options import ApiVlmOptions
+from docling.datamodel.pipeline_options_vlm_model import ApiVlmOptions
 from docling.exceptions import OperationNotAllowed
 from docling.models.base_model import BasePageModel
 from docling.utils.api_image_request import api_image_request
@@ -48,7 +48,9 @@ class ApiVlmModel(BasePageModel):
                 with TimeRecorder(conv_res, "vlm"):
                     assert page.size is not None
 
-                    hi_res_image = page.get_image(scale=self.vlm_options.scale)
+                    hi_res_image = page.get_image(
+                        scale=self.vlm_options.scale, max_size=self.vlm_options.max_size
+                    )
                     assert hi_res_image is not None
                     if hi_res_image:
                         if hi_res_image.mode != "RGB":

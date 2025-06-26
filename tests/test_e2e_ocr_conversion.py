@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import List, Tuple
 
 from docling.backend.docling_parse_backend import DoclingParseDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import (
-    AcceleratorDevice,
     EasyOcrOptions,
     OcrMacOptions,
     OcrOptions,
@@ -57,14 +57,14 @@ def test_e2e_conversions():
     pdf_paths = get_pdf_paths()
 
     engines: List[Tuple[OcrOptions, bool]] = [
-        (EasyOcrOptions(), False),
         (TesseractOcrOptions(), True),
         (TesseractCliOcrOptions(), True),
-        (EasyOcrOptions(force_full_page_ocr=True), False),
+        (EasyOcrOptions(), False),
         (TesseractOcrOptions(force_full_page_ocr=True), True),
         (TesseractOcrOptions(force_full_page_ocr=True, lang=["auto"]), True),
         (TesseractCliOcrOptions(force_full_page_ocr=True), True),
         (TesseractCliOcrOptions(force_full_page_ocr=True, lang=["auto"]), True),
+        (EasyOcrOptions(force_full_page_ocr=True), False),
     ]
 
     # rapidocr is only available for Python >=3.6,<3.13

@@ -211,7 +211,6 @@ class PageAssembleModel(BasePageModel):
         self.options = options
 
 
-
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:

@@ -1,13 +1,14 @@
 import re
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 from PIL import ImageDraw
 from pydantic import BaseModel
 
-from docling.datamodel.base_models import Page, ScoreValue
+from docling.datamodel.base_models import Page
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.settings import settings
 from docling.models.base_model import BasePageModel
@@ -16,7 +17,6 @@ from docling.utils.profiling import TimeRecorder
 
 class PagePreprocessingOptions(BaseModel):
     images_scale: Optional[float]
-    create_parsed_page: bool
 
 
 class PagePreprocessingModel(BasePageModel):
@@ -65,10 +65,8 @@ class PagePreprocessingModel(BasePageModel):
     def _parse_page_cells(self, conv_res: ConversionResult, page: Page) -> Page:
         assert page._backend is not None
 
-        page.cells = list(page._backend.get_text_cells())
-
-        if self.options.create_parsed_page:
-            page.parsed_page = page._backend.get_segmented_page()
+        page.parsed_page = page._backend.get_segmented_page()
+        assert page.parsed_page is not None
 
         # Rate the text quality from the PDF parser, and aggregate on page
         text_scores = []
@@ -76,11 +74,15 @@ class PagePreprocessingModel(BasePageModel):
             score = self.rate_text_quality(c.text)
             text_scores.append(score)
 
-        conv_res.confidence.pages[page.page_no].parse_score = float(
-            np.nanquantile(
-                text_scores, q=0.10
-            )  # To emphasise problems in the parse_score, we take the 10% percentile score of all text cells.
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", "Mean of empty slice", RuntimeWarning, "numpy"
+            )
+            conv_res.confidence.pages[page.page_no].parse_score = float(
+                np.nanquantile(
+                    text_scores, q=0.10
+                )  # To emphasise problems in the parse_score, we take the 10% percentile score of all text cells.
+            )
 
         # DEBUG code:
         def draw_text_boxes(image, cells, show: bool = False):

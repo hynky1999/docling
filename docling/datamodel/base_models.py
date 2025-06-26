@@ -13,11 +13,11 @@ from docling_core.types.doc import (
     TableCell,
 )
 from docling_core.types.doc.page import SegmentedPdfPage, TextCell
-
-# DO NOT REMOVE; explicitly exposed from this location
 from docling_core.types.io import (
     DocumentStream,
 )
+
+# DO NOT REMOVE; explicitly exposed from this location
 from PIL.Image import Image
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -49,6 +49,7 @@ class InputFormat(str, Enum):
     XML_USPTO = "xml_uspto"
     XML_JATS = "xml_jats"
     JSON_DOCLING = "json_docling"
+    AUDIO = "audio"
 
 
 class OutputFormat(str, Enum):
@@ -67,12 +68,13 @@ FormatToExtensions: Dict[InputFormat, List[str]] = {
     InputFormat.MD: ["md"],
     InputFormat.HTML: ["html", "htm", "xhtml"],
     InputFormat.XML_JATS: ["xml", "nxml"],
-    InputFormat.IMAGE: ["jpg", "jpeg", "png", "tif", "tiff", "bmp"],
+    InputFormat.IMAGE: ["jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"],
     InputFormat.ASCIIDOC: ["adoc", "asciidoc", "asc"],
     InputFormat.CSV: ["csv"],
-    InputFormat.XLSX: ["xlsx"],
+    InputFormat.XLSX: ["xlsx", "xlsm"],
     InputFormat.XML_USPTO: ["xml", "txt"],
     InputFormat.JSON_DOCLING: ["json"],
+    InputFormat.AUDIO: ["wav", "mp3"],
 }
 
 FormatToMimeType: Dict[InputFormat, List[str]] = {
@@ -104,6 +106,7 @@ FormatToMimeType: Dict[InputFormat, List[str]] = {
     ],
     InputFormat.XML_USPTO: ["application/xml", "text/plain"],
     InputFormat.JSON_DOCLING: ["application/json"],
+    InputFormat.AUDIO: ["audio/x-wav", "audio/mpeg", "audio/wav", "audio/mp3"],
 }
 
 MimeTypeToFormat: dict[str, list[InputFormat]] = {
@@ -131,12 +134,6 @@ class ErrorItem(BaseModel):
     error_message: str
 
 
-# class Cell(BaseModel):
-#    id: int
-#    text: str
-#    bbox: BoundingBox
-
-
 class Cluster(BaseModel):
     id: int
     label: DocItemLabel
@@ -152,15 +149,22 @@ class BasePageElement(BaseModel):
     page_no: int
     cluster: Cluster
     text: Optional[str] = None
-    media_char_width: Optional[float] = None
 
 
 class LayoutPrediction(BaseModel):
     clusters: List[Cluster] = []
 
 
+class VlmPredictionToken(BaseModel):
+    text: str = ""
+    token: int = -1
+    logprob: float = -1
+
+
 class VlmPrediction(BaseModel):
     text: str = ""
+    generated_tokens: list[VlmPredictionToken] = []
+    generation_time: float = -1
 
 
 class ContainerElement(
@@ -182,8 +186,6 @@ class TableStructurePrediction(BaseModel):
 
 class TextElement(BasePageElement):
     text: str
-    last_line_bbox: Optional[BoundingBox] = None
-
 
 
 class FigureElement(BasePageElement):
@@ -233,7 +235,6 @@ class Page(BaseModel):
     page_no: int
     # page_hash: Optional[str] = None
     size: Optional[Size] = None
-    cells: List[TextCell] = []
     parsed_page: Optional[SegmentedPdfPage] = None
     predictions: PagePredictions = PagePredictions()
     assembled: Optional[AssembledUnit] = None
@@ -246,11 +247,26 @@ class Page(BaseModel):
         float, Image
     ] = {}  # Cache of images in different scales. By default it is cleared during assembling.
 
+    @property
+    def cells(self) -> List[TextCell]:
+        """Return text cells as a read-only view of parsed_page.textline_cells."""
+        if self.parsed_page is not None:
+            return self.parsed_page.textline_cells
+        else:
+            return []
+
     def get_image(
-        self, scale: float = 1.0, cropbox: Optional[BoundingBox] = None
+        self,
+        scale: float = 1.0,
+        max_size: Optional[int] = None,
+        cropbox: Optional[BoundingBox] = None,
     ) -> Optional[Image]:
         if self._backend is None:
             return self._image_cache.get(scale, None)
+
+        if max_size:
+            assert self.size is not None
+            scale = min(scale, max_size / max(self.size.as_tuple()))
 
         if scale not in self._image_cache:
             if cropbox is None:
@@ -285,7 +301,7 @@ class OpenAiChatMessage(BaseModel):
 class OpenAiResponseChoice(BaseModel):
     index: int
     message: OpenAiChatMessage
-    finish_reason: str
+    finish_reason: Optional[str]
 
 
 class OpenAiResponseUsage(BaseModel):

@@ -249,7 +249,7 @@ class _DocumentConversionInput(BaseModel):
             backend: Type[AbstractDocumentBackend]
             if format not in format_options.keys():
                 _log.error(
-                    f"Input document {obj.name} does not match any allowed format."
+                    f"Input document {obj.name} with format {format} does not match any allowed format: ({format_options.keys()})"
                 )
                 backend = _DummyBackend
             else:
@@ -318,6 +318,8 @@ class _DocumentConversionInput(BaseModel):
         mime = mime or _DocumentConversionInput._detect_csv(content)
         mime = mime or "text/plain"
         formats = MimeTypeToFormat.get(mime, [])
+        _log.info(f"detected formats: {formats}")
+
         if formats:
             if len(formats) == 1 and mime not in ("text/plain"):
                 return formats[0]
@@ -334,9 +336,9 @@ class _DocumentConversionInput(BaseModel):
     ) -> Optional[InputFormat]:
         """Guess the input format of a document by checking part of its content."""
         input_format: Optional[InputFormat] = None
-        content_str = content.decode("utf-8")
 
         if mime == "application/xml":
+            content_str = content.decode("utf-8")
             match_doctype = re.search(r"<!DOCTYPE [^>]+>", content_str)
             if match_doctype:
                 xml_doctype = match_doctype.group()
@@ -358,6 +360,7 @@ class _DocumentConversionInput(BaseModel):
                     input_format = InputFormat.XML_JATS
 
         elif mime == "text/plain":
+            content_str = content.decode("utf-8")
             if InputFormat.XML_USPTO in formats and content_str.startswith("PATN\r\n"):
                 input_format = InputFormat.XML_USPTO
 
@@ -411,7 +414,11 @@ class _DocumentConversionInput(BaseModel):
             else:
                 return "application/xml"
 
-        if re.match(r"<!doctype\s+html|<html|<head|<body", content_str):
+        if re.match(
+            r"(<script.*?>.*?</script>\s*)?(<!doctype\s+html|<html|<head|<body)",
+            content_str,
+            re.DOTALL,
+        ):
             return "text/html"
 
         p = re.compile(
