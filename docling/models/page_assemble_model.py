@@ -10,7 +10,7 @@ from docling_core.types.doc.base import BoundingBox, CoordOrigin
 from pydantic import BaseModel
 from docling_core.types.doc.page import TextCell
 from docling_core.types.doc import DocItemLabel
-from docling.models.tables import update_pymupdf_table
+from docling.models.tables import _extract_table_from_bbox
 import re
 from docling.datamodel.base_models import (
     AssembledUnit,
@@ -101,7 +101,10 @@ def cells_overlap(cell1: TextCell, cell2: TextCell, threshold: float = 0.8):
 def sanitize_mineru_cells(cells: List[TextCell], ignore_rotated: bool = False):
     cells = [cell for cell in cells if cell.text != ""]
     if ignore_rotated:
+        removed_cells = [cell for cell in cells if abs(cell.info["line_angle"]) >= 5]
         cells = [cell for cell in cells if abs(cell.info["line_angle"]) < 5]
+        if len(removed_cells) > 0:
+            _log.warning(f"Removed {len(removed_cells)} cells with angle >= 5")
 
 
     if len(cells) == 0:
@@ -269,6 +272,17 @@ class PageAssembleModel(BasePageModel):
                                     cluster=cluster,
                                     page_no=page.page_no,
                                 )
+                                # if cluster.label == DocItemLabel.TABLE and page._backend and page._backend.is_valid():
+                                #     try:
+                                #         table_data = _extract_table_from_bbox(page._backend._fpage, cluster.bbox.to_top_left_origin(page._backend.get_size().height))
+                                #         if table_data:
+                                #             tbl.num_rows = table_data.num_rows
+                                #             tbl.num_cols = table_data.num_cols
+                                #             tbl.table_cells = table_data.table_cells
+                                #     except Exception as e:
+                                #         _log.error(f"Error getting table data for cluster {cluster.id}: {e}")
+                                # else:
+                                #     pass
 
                             elements.append(tbl)
                             body.append(tbl)

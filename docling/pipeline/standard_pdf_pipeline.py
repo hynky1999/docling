@@ -27,7 +27,6 @@ from docling.models.page_preprocessing_model import (
 )
 from docling.models.picture_description_base_model import PictureDescriptionBaseModel
 from docling.models.readingorder_model import ReadingOrderModel, ReadingOrderOptions
-from docling.models.table_structure_model import TableStructureModel
 from docling.pipeline.base_pipeline import PaginatedPipeline
 from docling.utils.model_downloader import download_models
 from docling.utils.profiling import ProfilingScope, TimeRecorder
@@ -37,7 +36,6 @@ _log = logging.getLogger(__name__)
 
 class StandardPdfPipeline(PaginatedPipeline):
     _layout_model_path = LayoutModel._model_path
-    _table_model_path = TableStructureModel._model_path
 
     def __init__(self, pipeline_options: PdfPipelineOptions):
         super().__init__(pipeline_options)
@@ -82,13 +80,7 @@ class StandardPdfPipeline(PaginatedPipeline):
                 accelerator_options=pipeline_options.accelerator_options,
             ),
             # Table structure model
-            TableStructureModel(
-                enabled=pipeline_options.do_table_structure,
-                artifacts_path=artifacts_path,
-                options=pipeline_options.table_structure_options,
-                accelerator_options=pipeline_options.accelerator_options,
-            ),
-            # Page assemble
+            # Page assemblj
             PageAssembleModel(options=PageAssembleOptions()),
         ]
 

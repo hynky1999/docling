@@ -203,6 +203,7 @@ class PaginatedPipeline(BasePipeline):  # TODO this is a bad name.
                     f"Filtered out {initial_page_count - len(conv_res.pages)} uninitialized pages "
                     f"due to timeout or processing failures"
                 )
+                conv_res.status = ConversionStatus.PARTIAL_SUCCESS
 
         return conv_res
 
