@@ -272,17 +272,17 @@ class PageAssembleModel(BasePageModel):
                                     cluster=cluster,
                                     page_no=page.page_no,
                                 )
-                                # if cluster.label == DocItemLabel.TABLE and page._backend and page._backend.is_valid():
-                                #     try:
-                                #         table_data = _extract_table_from_bbox(page._backend._fpage, cluster.bbox.to_top_left_origin(page._backend.get_size().height))
-                                #         if table_data:
-                                #             tbl.num_rows = table_data.num_rows
-                                #             tbl.num_cols = table_data.num_cols
-                                #             tbl.table_cells = table_data.table_cells
-                                #     except Exception as e:
-                                #         _log.error(f"Error getting table data for cluster {cluster.id}: {e}")
-                                # else:
-                                #     pass
+                                if cluster.label == DocItemLabel.TABLE and page._backend and page._backend.is_valid():
+                                    try:
+                                        table_data = _extract_table_from_bbox(page._backend._fpage, cluster.bbox.to_top_left_origin(page._backend.get_size().height))
+                                        if table_data:
+                                            tbl.num_rows = table_data.num_rows
+                                            tbl.num_cols = table_data.num_cols
+                                            tbl.table_cells = table_data.table_cells
+                                    except Exception as e:
+                                        pass
+                                else:
+                                    pass
 
                             elements.append(tbl)
                             body.append(tbl)
